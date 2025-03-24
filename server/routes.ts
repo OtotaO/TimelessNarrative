@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { db } from "@db";
-import { literaryEvents, users } from "@db/schema";
+import { literaryEvents, users, historicalPhrases } from "@db/schema";
 import { desc, asc, eq, sql } from "drizzle-orm";
 import passport from "passport";
 import { registerUser } from "./auth";
@@ -50,7 +50,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Event routes
+  // Literary Event routes
   app.get("/api/events", async (req, res) => {
     try {
       const events = await db.query.literaryEvents.findMany({
@@ -72,6 +72,31 @@ export function registerRoutes(app: Express): Server {
       res.json(events);
     } catch (error) {
       res.status(500).json({ error: "Failed to search events" });
+    }
+  });
+
+  // Historical Phrases routes
+  app.get("/api/phrases", async (req, res) => {
+    try {
+      const phrases = await db.query.historicalPhrases.findMany({
+        orderBy: [desc(historicalPhrases.createdAt)]
+      });
+      res.json(phrases);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch phrases" });
+    }
+  });
+
+  // Search phrases
+  app.get("/api/phrases/search", async (req, res) => {
+    const { query } = req.query;
+    try {
+      const phrases = await db.query.historicalPhrases.findMany({
+        where: sql`to_tsvector('english', ${historicalPhrases.phrase} || ' ' || ${historicalPhrases.meaning} || ' ' || ${historicalPhrases.origin}) @@ plainto_tsquery('english', ${query})`
+      });
+      res.json(phrases);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to search phrases" });
     }
   });
 
@@ -97,16 +122,23 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Get user's submitted events
-  app.get("/api/events/my-contributions", isAuthenticated, async (req, res) => {
+  // Submit new phrase (requires authentication)
+  app.post("/api/phrases", isAuthenticated, async (req, res) => {
+    const { phrase, meaning, origin, timePeriod, category, source } = req.body;
     try {
-      const events = await db.query.literaryEvents.findMany({
-        where: eq(literaryEvents.contributorId, (req.user as any).id),
-        orderBy: [desc(literaryEvents.createdAt)]
-      });
-      res.json(events);
+      const newPhrase = await db.insert(historicalPhrases).values({
+        phrase,
+        meaning,
+        origin,
+        timePeriod,
+        category,
+        source,
+        contributorId: (req.user as any).id,
+        status: 'pending'
+      }).returning();
+      res.json(newPhrase[0]);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch contributions" });
+      res.status(500).json({ error: "Failed to submit phrase" });
     }
   });
 
