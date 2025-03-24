@@ -3,9 +3,10 @@ import { SearchFilter } from "@/components/timeline/search-filter";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, BookOpen } from "lucide-react";
 import { motion } from "framer-motion";
+import type { SelectEvent } from "@db/schema";
 
 export default function Home() {
-  const { data: events, isLoading } = useQuery({
+  const { data: events, isLoading } = useQuery<SelectEvent[]>({
     queryKey: ["/api/events"],
   });
 
@@ -41,7 +42,7 @@ export default function Home() {
 
       <main className="max-w-4xl mx-auto px-4 py-8">
         <SearchFilter />
-        <TimelineView events={events} />
+        <TimelineView events={events || []} />
       </main>
     </div>
   );

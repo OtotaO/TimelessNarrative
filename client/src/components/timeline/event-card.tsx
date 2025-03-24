@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { CalendarDays, BookMarked } from "lucide-react";
 import type { SelectEvent } from "@db/schema";
+import { EventModal } from "./event-modal";
 
 interface EventCardProps {
   event: SelectEvent;
